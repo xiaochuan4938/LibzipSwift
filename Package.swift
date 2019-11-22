@@ -5,22 +5,62 @@ import PackageDescription
 
 let package = Package(
     name: "LibzipSwift",
-    products: [
-        // Products define the executables and libraries produced by a package, and make them visible to other packages.
-        .library(
-            name: "LibzipSwift",
-            targets: ["LibzipSwift"]),
+    platforms: [
+        .iOS(.v9),
+        .tvOS(.v9),
+        .macOS(.v10_10),
+        .watchOS(.v2),
     ],
-    dependencies: [
-        // Dependencies declare other packages that this package depends on.
-        // .package(url: /* package url */, from: "1.0.0"),
+    products: [
+        .library(name: "zip", targets: ["zip"]),
+        .library(name: "LibzipSwift", targets: ["LibzipSwift"]),
     ],
     targets: [
-        // Targets are the basic building blocks of a package. A target can define a module or a test suite.
-        // Targets can depend on other targets in this package, and on products in packages which this package depends on.
+        .target(
+            name: "zip",
+            path: "Sources/zip",
+            exclude: [
+                // Exclude BZ2 compression
+                "libzip/lib/zip_algorithm_bzip2.c",
+                "libzip/lib/zip_algorithm_xz.c",
+                
+                // Exclude non-CommonCrypto encryption
+                "libzip/lib/zip_crypto_gnutls.c",
+                "libzip/lib/zip_crypto_mbedtls.c",
+                "libzip/lib/zip_crypto_openssl.c",
+                "libzip/lib/zip_crypto_win.c",
+                
+                // Exclude Windows random
+                "libzip/lib/zip_random_win32.c",
+                "libzip/lib/zip_random_uwp.c",
+                
+                // Exclude Windows utilities
+                "libzip/lib/zip_source_win32a.c",
+                "libzip/lib/zip_source_win32handle.c",
+                "libzip/lib/zip_source_win32utf8.c",
+                "libzip/lib/zip_source_win32w.c",
+                "libzip/lib/zip_source_winzip_aes_decode.c",
+                "libzip/lib/zip_source_winzip_aes_encode.c",
+                "libzip/lib/zip_winzip_aes.c",
+                
+            ],
+            sources: [
+                "libzip/lib",
+            ],
+            publicHeadersPath: "include",
+            cSettings: [
+                .define("HAVE_CONFIG_H"),
+                .headerSearchPath("libzip/xcode"),
+            ],
+            linkerSettings: [
+                .linkedLibrary("z"),
+            ]
+        ),
         .target(
             name: "LibzipSwift",
-            dependencies: []),
+            dependencies: ["zip"],
+            path: "Sources/LibzipSwift"
+        ),
         .testTarget(
             name: "LibzipSwiftTests",
             dependencies: ["LibzipSwift"]),
