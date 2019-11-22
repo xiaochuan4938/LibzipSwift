@@ -12,12 +12,12 @@ let package = Package(
         .watchOS(.v2),
     ],
     products: [
-        .library(name: "zip", targets: ["zip"]),
+        .library(name: "libzip", targets: ["libzip"]),
         .library(name: "LibzipSwift", targets: ["LibzipSwift"]),
     ],
     targets: [
         .target(
-            name: "zip",
+            name: "libzip",
             path: "Sources/zip",
             exclude: [
                 // Exclude BZ2 compression
@@ -58,7 +58,7 @@ let package = Package(
         ),
         .target(
             name: "LibzipSwift",
-            dependencies: ["zip"],
+            dependencies: ["libzip"],
             path: "Sources/LibzipSwift"
         ),
         .testTarget(
