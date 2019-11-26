@@ -125,10 +125,28 @@ public final class ZipEntry: ZipErrorContext {
         
         var fn = String(cString: stat.name!, encoding: .utf8)
         if self.externalAttributes.operatingSystem == .Dos {
-            let cChar = zip_get_name(archive.handle, index, Encoding.raw.rawValue)
-            if let cChar = cChar {
-                fn = String(cString: cChar, encoding: String.Encoding(rawValue: CFStringConvertEncodingToNSStringEncoding(0x0930)))!
+            
+            let zipFN = zip_get_name(archive.handle, index, Encoding.raw.rawValue)
+            let nameLen = zipFN!.withMemoryRebound(to: Int8.self, capacity: 8, {
+                return strlen($0)
+            })
+            let buff = UnsafeBufferPointer(start: stat.name, count: nameLen)
+            let gbkData = Data(buffer: buff)
+            let encoding = CFStringConvertEncodingToNSStringEncoding(CFStringEncoding(CFStringEncodings.EUC_CN.rawValue))
+            if let str = NSString(data: gbkData, encoding: encoding) {
+                fn = str as String
             }
+            
+//            let zipFN = zip_get_name(archive.handle, index, Encoding.raw.rawValue)
+//            if let name = zipFN {
+//                fn?.data(using: .utf8)
+//                let cfEncoding = CFStringEncodings.EUC_CN
+//                let encoding = CFStringConvertEncodingToNSStringEncoding(CFStringEncoding(cfEncoding.rawValue))
+//                if let str = NSString(data: name, encoding: encoding) {
+//                    fn = str as String
+//                }
+//            }
+            
         }
         if let fn = fn {
             self.fileName = fn

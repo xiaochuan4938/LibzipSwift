@@ -6,7 +6,7 @@ final class ZipArchiveTests: XCTestCase {
         // This is an example of a functional test case.
         // Use XCTAssert and related functions to verify your tests produce the correct
         // results.
-        let fileName = "/Users/MartinLau/Downloads/iOS 资源运营程序/20180720_39522_233186284085.ipa"
+        let fileName = "/Users/martin/Desktop/123.zip"
         do {
             let zipArchive = try ZipArchive(path: fileName)
             defer {
@@ -19,6 +19,8 @@ final class ZipArchiveTests: XCTestCase {
                 print("entry name: \(entry.fileName)\n")
                 print("entry m_time: \(entry.modificationDate)")
             }
+        } catch ZipError.fileNotExist {
+            print("文件不存在")
         } catch {
             print("异常")
         }
