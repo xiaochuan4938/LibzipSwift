@@ -6,7 +6,9 @@ final class ZipArchiveTests: XCTestCase {
         // This is an example of a functional test case.
         // Use XCTAssert and related functions to verify your tests produce the correct
         // results.
-        let fileName = "/Users/martin/Desktop/CodeSign/321.zip"
+//        let fileName = "/Users/martin/Desktop/CodeSign/321.zip"
+        let fileName = "/Users/MartinLau/Desktop/321.zip"
+        
         do {
             let zipArchive = try ZipArchive(path: fileName)
             defer {
@@ -27,9 +29,8 @@ final class ZipArchiveTests: XCTestCase {
         }
     }
     
-    func testOpenEntry() {
-        
-        let fileName = "/Users/martin/Desktop/CodeSign/321.zip"
+    func testExtractExtry() {
+        let fileName = "/Users/MartinLau/Desktop/321.zip"
         do {
             let zipArchive = try ZipArchive(path: fileName)
             defer {
@@ -39,7 +40,42 @@ final class ZipArchiveTests: XCTestCase {
             }
             let entries = try zipArchive.getEntries()
             for entry in entries {
-                entry.Extract(password: <#T##String#>, to: &<#T##Data#>)
+                
+            }
+            
+        } catch ZipError.fileNotExist {
+            print("文件不存在")
+        } catch {
+            print("Open Zip Error: ")
+            print("\(error.localizedDescription)")
+        }
+    }
+    
+    func testOpenEntry2Data() {
+        
+//        let fileName = "/Users/martin/Desktop/CodeSign/321.zip"
+        let fileName = "/Users/MartinLau/Desktop/321.zip"
+        do {
+            let zipArchive = try ZipArchive(path: fileName)
+            defer {
+                do {
+                    try zipArchive.close()
+                } catch { print("关闭 zip archive 失败")}
+            }
+            let entries = try zipArchive.getEntries()
+            for entry in entries {
+                if entry.isDirectory {
+                    try FileManager.default.createDirectory(atPath: "/Users/MartinLau/Desktop/123/\(entry.fileName)", withIntermediateDirectories: true)
+                } else {
+                    var data: Data = Data()
+                    if try entry.Extract(to: &data) {
+                        let filePath = URL(fileURLWithPath: "/Users/MartinLau/Desktop/123/\(entry.fileName)")
+                        if !FileManager.default.fileExists(atPath: filePath.deletingLastPathComponent().path) {
+                            try FileManager.default.createDirectory(atPath: filePath.deletingLastPathComponent().path, withIntermediateDirectories: true)
+                        }
+                        try data.write(to: filePath)
+                    }
+                }
             }
         } catch ZipError.fileNotExist {
             print("文件不存在")
@@ -51,7 +87,8 @@ final class ZipArchiveTests: XCTestCase {
     
     static var allTests = [
 //        ("testGetEntries", testGetEntries),
-        ("testOpenEntry", testOpenEntry),
+//        ("testOpenEntry2Data", testOpenEntry2Data),
+        ("testExtractExtry", testExtractExtry),
     ]
 }
 

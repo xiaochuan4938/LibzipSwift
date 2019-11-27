@@ -206,24 +206,37 @@ public final class ZipEntry: ZipErrorContext {
         return zipFileHandler
     }
     
-    public func Extract(password: String = "", to data: inout Data) throws -> Bool {
+    /// 提取 Entry 到 Data
+    /// - Parameters:
+    ///   - data: ref out data
+    ///   - password: if has password, set it
+    public func Extract(to data: inout Data, password: String = "") throws -> Bool {
         let handle = try openEntry(password: password, mode: .none)
         
-        var readNum: Int64
-        var readSize: UInt64
+        var readNum: Int64 = 0
+        var readSize: Int64 = 0
         let count: Int = 1024*100
-        let buff = UnsafeMutableRawPointer.allocate(byteCount: count, alignment: 8)
+        var buffer = [UInt8](repeating: 0, count: count)
+        while true {
+            readNum = try zipCast(checkZipResult(zip_fread(handle, &buffer, zipCast(count))))
+            if readNum <= 0 {
+                break
+            }
+            readSize += readNum
+            data.append(buffer, count: count)
+        }
+        return true
+    }
+    
+    // TODO: 完成功能解压缩函式
+    public func Extract(to path: String, password: String = "", _ closure: ((String, Double) -> Bool)?) throws -> Bool {
         
-//        while true {
-//            readNum = try zipCast(checkZipResult(zip_fread(handle,buff, zipCast(count))))
-//            if readNum <= 0 {
-//                break
-//            }
-//            let buffer = UnsafeBufferPointer(start: buff, count: )
-//            let data = Data(buffer: buff)
-//            
-//            readSize += readNum
-//        }
+        if let pg = closure {
+            if pg(self.fileName, 0) {
+                return false
+            }
+        }
+        
         return false
     }
     
