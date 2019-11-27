@@ -3,6 +3,20 @@ import Foundation
 
 // MARK: - struct
 
+public struct OpenMode: RawRepresentable {
+    public let rawValue: Int32
+    public init(rawValue: Int32) {
+        self.rawValue = rawValue
+    }
+    
+    public static let none = OpenMode(rawValue: Int32.zero)
+    public static let checkConsistency = OpenMode(rawValue: ZIP_CHECKCONS)
+    public static let create = OpenMode(rawValue: ZIP_CREATE)
+    public static let exclusive = OpenMode(rawValue: ZIP_EXCL)
+    public static let truncate = OpenMode(rawValue: ZIP_TRUNCATE)
+    public static let readOnly = OpenMode(rawValue: ZIP_RDONLY)
+}
+
 public struct CompressionMethod: RawRepresentable {
     public let rawValue: Int32
     public init(rawValue: Int32) {
@@ -68,7 +82,7 @@ public struct Encoding: RawRepresentable {
 }
 
 /// zip OS Platform
-public struct ZipOSPlatform: OptionSet {
+public struct ZipOSPlatform: RawRepresentable {
     public let rawValue: UInt8
     public init(rawValue: UInt8) {
         self.rawValue = rawValue

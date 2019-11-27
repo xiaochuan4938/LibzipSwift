@@ -14,21 +14,6 @@ public final class ZipArchive: ZipErrorContext {
     
     // MARK: - struct
     
-    public struct OpenMode: OptionSet {
-        public let rawValue: Int32
-        public init(rawValue: Int32) {
-            self.rawValue = rawValue
-        }
-        
-        public static let none = OpenMode(rawValue: 0)
-        public static let checkConsistency = OpenMode(rawValue: ZIP_CHECKCONS)
-        public static let create = OpenMode(rawValue: ZIP_CREATE)
-        public static let exclusive = OpenMode(rawValue: ZIP_EXCL)
-        public static let truncate = OpenMode(rawValue: ZIP_TRUNCATE)
-        public static let readOnly = OpenMode(rawValue: ZIP_RDONLY)
-    }
-    
-    
     // MARK: - property
     
     internal var error: ZipError? {
@@ -46,11 +31,11 @@ public final class ZipArchive: ZipErrorContext {
     }
     
     public static func createZip(path: String) throws -> ZipArchive {
-        return try ZipArchive(path: path, mode: .create)
+        return try ZipArchive(path: path, mode: [.create])
     }
     
     public static func createZip(url: URL) throws -> ZipArchive {
-        return try ZipArchive(url: url, mode: .create)
+        return try ZipArchive(url: url, mode: [.create])
     }
     
     // MARK: - init / open
@@ -61,29 +46,36 @@ public final class ZipArchive: ZipErrorContext {
         }
     }
     
-    public init(path: String, mode: OpenMode = [.none]) throws {
+    public init(path: String, mode: [OpenMode] = [.none]) throws {
         if !FileManager.default.fileExists(atPath: path) {
             throw ZipError.fileNotExist;
         }
-        
+        var falgs: OpenMode = OpenMode(rawValue: Int32(ZIP_FL_COMPRESSED))
+        mode.forEach {
+            falgs = OpenMode(rawValue: falgs.rawValue | $0.rawValue)
+        }
         var status: Int32 = ZIP_ER_OK
         let handle = path.withCString { path in
-            return zip_open(path, mode.rawValue, &status)
+            return zip_open(path, falgs.rawValue, &status)
         }
         
         try checkZipError(status)
         self.handle = try handle.unwrapped()
     }
     
-    public init(url: URL, mode: OpenMode = [.none]) throws {
+    public init(url: URL, mode: [OpenMode] = [.none]) throws {
         if !FileManager.default.fileExists(atPath: url.path) {
             throw ZipError.fileNotExist;
         }
         
+        var falgs: OpenMode = OpenMode(rawValue: Int32(ZIP_FL_COMPRESSED))
+        mode.forEach { item in
+            falgs = OpenMode(rawValue: falgs.rawValue | item.rawValue)
+        }
         var status: Int32 = ZIP_ER_OK
         let handle: OpaquePointer? = try url.withUnsafeFileSystemRepresentation { path in
             if let path = path {
-                return zip_open(path, mode.rawValue, &status)
+                return zip_open(path, falgs.rawValue, &status)
             } else {
                 throw ZipError.unsupportedURL
             }
