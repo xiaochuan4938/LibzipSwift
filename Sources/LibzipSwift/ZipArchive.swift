@@ -136,10 +136,22 @@ public final class ZipArchive: ZipErrorContext {
         return zipentries
     }
     
-//    public func getEntry(index: Int) throws -> ZipEntry {
-//
-//        return try ZipEntry(archive: self, index: zipCast(index))
-//    }
+    public containsEntry(name: String, caseSensitive: Bool, index: inout UInt64) -> {
+        
+    }
+    
+    public func deleteEntry(index: UInt64) -> Bool {
+        return checkIsSuccess(zip_delete(handle, index))
+    }
+    
+    public func deleteEntry(entryName: String, caseSensitive: Bool) -> {
+        var idx: Int64 = 0
+        
+    }
+    
+    public func addFile() {
+        
+    }
     
 }
 

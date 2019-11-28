@@ -6,9 +6,9 @@ public final class ZipEntry: ZipErrorContext {
     let archive: ZipArchive
     let stat: zip_stat
     
-//    private let vaild: zip_uint64_t
-//    private let localExtraFieldsCount: CShort
-//    private let centralExtraFieldsCount: CShort
+    private let vaild: zip_uint64_t
+    //    private let localExtraFieldsCount: CShort
+    //    private let centralExtraFieldsCount: CShort
     
     // MARK: - property
     
@@ -64,12 +64,12 @@ public final class ZipEntry: ZipErrorContext {
         var level:CompressionLevel = .default
         if stat.comp_method != 0 {
             switch (((stat.flags & 0x6) / 2)) {
-            case 0:
-                level = .default
-            case 1:
-                level = .best
-            default:
-                level = .fastest
+                case 0:
+                    level = .default
+                case 1:
+                    level = .best
+                default:
+                    level = .fastest
             }
         }
         return level
@@ -104,7 +104,7 @@ public final class ZipEntry: ZipErrorContext {
     public init(archive: ZipArchive, stat: zip_stat) throws {
         self.archive = archive
         self.stat = stat
-//        self.vaild = stat.valid
+        self.vaild = stat.valid
         
         self.compressedSize = stat.comp_size
         self.uncompressedSize = stat.size
@@ -124,7 +124,9 @@ public final class ZipEntry: ZipErrorContext {
             self.externalAttributes = ExternalAttributes(operatingSystem: .Dos, attributes: 0)
         }
         
-        var fn = String(cString: stat.name!, encoding: .utf8)
+        var posix:UInt16 = 420
+        var isSysLink = false
+        var name = String(cString: stat.name!, encoding: .utf8)
         let zipOS = self.externalAttributes.operatingSystem
         if zipOS == .Dos || zipOS == .WINDOWS_NTFS {
             if let zipFN = zip_get_name(archive.handle, index, Encoding.raw.rawValue) {
@@ -137,18 +139,18 @@ public final class ZipEntry: ZipErrorContext {
                 var convertedString: NSString?
                 _ = NSString.stringEncoding(for: sourceData, encodingOptions: nil, convertedString: &convertedString, usedLossyConversion: nil)
                 if let cs = convertedString {
-                    fn =  cs as String
+                    name =  cs as String
                 }
             }
         }
-        if let fn = fn {
-            self.fileName = fn
-        } else {
-            self.fileName = ""
+        if zipOS == .UNIX || zipOS == .OS_X || zipOS == .MACINTOSH {
+            posix = UInt16(ZipEntry.itemPermissions(self.externalAttributes.attributes))
+            isSysLink = ZipEntry.itemIsSymbolicLink(self.externalAttributes.attributes)
         }
-        self.isDirectory = ZipEntry.itemIsDirectory(self.externalAttributes)
-        self.posixPermission = UInt16(ZipEntry.itemPermissions(self.externalAttributes.attributes))
-        self.isSymbolicLink = ZipEntry.itemIsSymbolicLink(self.externalAttributes.attributes)
+        self.isDirectory = attributes > 0 ? ZipEntry.itemIsDirectory(self.externalAttributes) : (name!.last == "/")
+        self.isSymbolicLink = isSysLink
+        self.posixPermission = posix
+        self.fileName = name!
     }
     
     // MARK: - Attributes
@@ -177,19 +179,24 @@ public final class ZipEntry: ZipErrorContext {
     
     // MARK: - modify/remove Entries
     
+    /// rename
+    /// - Parameter name: the new name
     public func rename(name: String) -> Bool {
         return name.withCString { name in
             return checkIsSuccess(zip_file_rename(archive.handle, index, name, ZIP_FL_ENC_UTF_8))
         }
     }
     
+    /// 设定修改日期
+    /// - Parameter date: date
     public func setModified(date: Date) throws {
         let time = time_t(date.timeIntervalSinceNow)
         try checkZipResult(zip_file_set_mtime(archive.handle, index, time, 0))
     }
     
     // MARK: - discard change
-    
+
+    /// 撤销修改
     public func discardChange() -> Bool {
         return checkIsSuccess(zip_unchange(archive.handle, index))
     }
@@ -210,34 +217,112 @@ public final class ZipEntry: ZipErrorContext {
     /// - Parameters:
     ///   - data: ref out data
     ///   - password: if has password, set it
-    public func Extract(to data: inout Data, password: String = "") throws -> Bool {
-        let handle = try openEntry(password: password, mode: .none)
+    public func extract(to data: inout Data, password: String = "") throws -> Bool {
+        let zipFileHandler = try openEntry(password: password, mode: .none)
+        defer {
+            _ = checkIsSuccess(zip_fclose(zipFileHandler))
+        }
         
         var readNum: Int64 = 0
         var readSize: Int64 = 0
         let count: Int = 1024*100
         var buffer = [UInt8](repeating: 0, count: count)
         while true {
-            readNum = try zipCast(checkZipResult(zip_fread(handle, &buffer, zipCast(count))))
+            readNum = try zipCast(checkZipResult(zip_fread(zipFileHandler, &buffer, zipCast(count))))
             if readNum <= 0 {
                 break
             }
             readSize += readNum
-            data.append(buffer, count: count)
+            data.append(buffer, count: Int(readNum))
+        }
+        if readNum < 0 {
+            return false
         }
         return true
     }
     
-    // TODO: 完成功能解压缩函式
-    public func Extract(to path: String, password: String = "", _ closure: ((String, Double) -> Bool)?) throws -> Bool {
-        
+    /// Unzip the document
+    /// - Parameters:
+    ///   - path: *unzip to path*
+    ///   - password: password
+    ///   - overwrite: overwrite
+    ///   - closure: progress report
+    public func extract(to path: String, password: String = "", overwrite: Bool = true, _ closure: ((String, Double) -> Bool)?) throws -> Bool {
         if let pg = closure {
-            if pg(self.fileName, 0) {
+            if !pg(fileName, 0) {
                 return false
             }
         }
         
-        return false
+        if FileManager.default.fileExists(atPath: path) {
+            if !overwrite {
+                return false
+            }
+        }
+        if isDirectory {
+            try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true, attributes: nil)
+            if let pg = closure {
+                if !pg(fileName, 100) {
+                    return false
+                }
+            }
+            return true
+        } else {
+            var readNum: Int64 = 0
+            var readSize: Int64 = 0
+            let count: Int = 1024*100
+            let saveUrl = URL(fileURLWithPath: path)
+            var buffer = [UInt8](repeating: 0, count: count)
+            let zipHandler = try openEntry(password: password, mode: .none)
+            defer {
+                _ = checkIsSuccess(zip_fclose(zipHandler))
+            }
+            if !FileManager.default.fileExists(atPath: saveUrl.deletingLastPathComponent().path) {
+                try FileManager.default.createDirectory(at: saveUrl.deletingLastPathComponent(), withIntermediateDirectories: true)
+            }
+            FileManager.default.createFile(atPath: path, contents: nil)
+            
+            guard let fileHandler = FileHandle(forWritingAtPath: path) else {
+                return false
+            }
+            defer {
+                fileHandler.closeFile()
+            }
+            fileHandler.seek(toFileOffset: 0)
+            while true {
+                readNum = try zipCast(checkZipResult(zip_fread(zipHandler, &buffer, zipCast(count))))
+                if readNum <= 0 {
+                    break
+                }
+                readSize += readNum
+                autoreleasepool {
+                    let data = Data(bytes: buffer, count: Int(readNum))
+                    fileHandler.write(data)
+                }
+                if let pg = closure {
+                    
+                    let pn = Double(readSize) / Double(uncompressedSize)
+                    if !pg(fileName, pn) {
+                        return false
+                    }
+                }
+            }
+            if readNum < 0 {
+                return false
+            }
+            
+            let att: [FileAttributeKey : Any] = [
+                FileAttributeKey.posixPermissions: posixPermission,
+                FileAttributeKey.modificationDate: modificationDate
+                ]
+            try FileManager.default.setAttributes(att, ofItemAtPath: path)
+            return true
+        }
     }
+    
+    public func delete() -> Bool {
+        return archive.deleteEntry(index: index)
+    }
+    
     
 }

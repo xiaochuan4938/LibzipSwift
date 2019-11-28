@@ -6,8 +6,8 @@ final class ZipArchiveTests: XCTestCase {
         // This is an example of a functional test case.
         // Use XCTAssert and related functions to verify your tests produce the correct
         // results.
-//        let fileName = "/Users/martin/Desktop/CodeSign/321.zip"
-        let fileName = "/Users/MartinLau/Desktop/321.zip"
+        let fileName = "/Users/martin/Desktop/CodeSign/321.zip"
+        //        let fileName = "/Users/MartinLau/Desktop/321.zip"
         
         do {
             let zipArchive = try ZipArchive(path: fileName)
@@ -29,8 +29,9 @@ final class ZipArchiveTests: XCTestCase {
         }
     }
     
-    func testExtractExtry() {
-        let fileName = "/Users/MartinLau/Desktop/321.zip"
+    func testExtractEntry() {
+        let fileName = "/Users/martin/Desktop/CodeSign/123test.ipa"   //"/Users/martin/Desktop/CodeSign/123.zip"
+        //        let fileName = "/Users/MartinLau/Desktop/321.zip"
         do {
             let zipArchive = try ZipArchive(path: fileName)
             defer {
@@ -40,21 +41,29 @@ final class ZipArchiveTests: XCTestCase {
             }
             let entries = try zipArchive.getEntries()
             for entry in entries {
-                
+//                if try entry.Extract(to: "/Users/martin/Desktop/CodeSign/123/\(entry.fileName)") { (item, progress) -> Bool in
+//                    print("extracting item:\(item)\n\(progress)")
+//                    return true
+//                    } {
+//                    print("success")
+//                } else {
+//                    print("fail")
+//                }
+                let result = try entry.extract(to: "/Users/martin/Desktop/CodeSign/123/\(entry.fileName)", nil)
+                assert(result, "解压缩发生错误")
             }
-            
+            print("222")
         } catch ZipError.fileNotExist {
             print("文件不存在")
         } catch {
-            print("Open Zip Error: ")
-            print("\(error.localizedDescription)")
+            print("Error : \(error.localizedDescription)")
         }
     }
     
     func testOpenEntry2Data() {
         
-//        let fileName = "/Users/martin/Desktop/CodeSign/321.zip"
-        let fileName = "/Users/MartinLau/Desktop/321.zip"
+        let fileName = "/Users/martin/Desktop/CodeSign/321.zip"
+        //        let fileName = "/Users/MartinLau/Desktop/321.zip"
         do {
             let zipArchive = try ZipArchive(path: fileName)
             defer {
@@ -68,7 +77,7 @@ final class ZipArchiveTests: XCTestCase {
                     try FileManager.default.createDirectory(atPath: "/Users/MartinLau/Desktop/123/\(entry.fileName)", withIntermediateDirectories: true)
                 } else {
                     var data: Data = Data()
-                    if try entry.Extract(to: &data) {
+                    if try entry.extract(to: &data) {
                         let filePath = URL(fileURLWithPath: "/Users/MartinLau/Desktop/123/\(entry.fileName)")
                         if !FileManager.default.fileExists(atPath: filePath.deletingLastPathComponent().path) {
                             try FileManager.default.createDirectory(atPath: filePath.deletingLastPathComponent().path, withIntermediateDirectories: true)
@@ -86,9 +95,9 @@ final class ZipArchiveTests: XCTestCase {
     }
     
     static var allTests = [
-//        ("testGetEntries", testGetEntries),
-//        ("testOpenEntry2Data", testOpenEntry2Data),
-        ("testExtractExtry", testExtractExtry),
+        //        ("testGetEntries", testGetEntries),
+        //        ("testOpenEntry2Data", testOpenEntry2Data),
+        ("testExtractEntry", testExtractEntry),
     ]
 }
 
