@@ -101,7 +101,7 @@ public final class ZipEntry: ZipErrorContext {
     
     // MARK: - init
     
-    public init(archive: ZipArchive, stat: zip_stat) throws {
+    public init(archive: ZipArchive, stat: zip_stat) {
         self.archive = archive
         self.stat = stat
         self.vaild = stat.valid
@@ -118,7 +118,7 @@ public final class ZipEntry: ZipErrorContext {
         
         var opsys: UInt8 = 0
         var attributes: UInt32 = 0
-        if zip_file_get_external_attributes(archive.handle, stat.index, Condition.original.rawValue, &opsys, &attributes) == ZIP_ER_OK {
+        if zip_file_get_external_attributes(archive.archiveOpt, stat.index, Condition.original.rawValue, &opsys, &attributes) == ZIP_ER_OK {
             self.externalAttributes = ExternalAttributes(operatingSystem: ZipOSPlatform(rawValue: opsys), attributes: attributes)
         } else {
             self.externalAttributes = ExternalAttributes(operatingSystem: .Dos, attributes: 0)
@@ -129,7 +129,7 @@ public final class ZipEntry: ZipErrorContext {
         var name = String(cString: stat.name!, encoding: .utf8)
         let zipOS = self.externalAttributes.operatingSystem
         if zipOS == .Dos || zipOS == .WINDOWS_NTFS {
-            if let zipFN = zip_get_name(archive.handle, index, Encoding.raw.rawValue) {
+            if let zipFN = zip_get_name(archive.archiveOpt, index, Encoding.raw.rawValue) {
                 // 自动转换档案名编码
                 let nameLen = zipFN.withMemoryRebound(to: Int8.self, capacity: 8, {
                     return strlen($0)
@@ -153,27 +153,27 @@ public final class ZipEntry: ZipErrorContext {
         self.fileName = name!
     }
     
-    // MARK: - Attributes
+    // MARK: - attributes
     
     public func setExternalAttributes(operatingSystem: UInt8, attributes: UInt32) throws {
-        try checkZipResult(zip_file_set_external_attributes(archive.handle, index, 0, operatingSystem, attributes))
+        try checkZipResult(zip_file_set_external_attributes(archive.archiveOpt, index, 0, operatingSystem, attributes))
     }
     
     // MARK: - compression
     
     public func setCompression(method: CompressionMethod = .deflate, flags: CompressionLevel = .default) throws {
-        try checkZipResult(zip_set_file_compression(archive.handle, index, method.rawValue, flags.rawValue))
+        try checkZipResult(zip_set_file_compression(archive.archiveOpt, index, method.rawValue, flags.rawValue))
     }
     
     // MARK: - encryption
     
     public func setEncryption(method: EncryptionMethod) -> Bool {
-        return checkIsSuccess(zip_file_set_encryption(archive.handle, index, method.rawValue, nil))
+        return checkIsSuccess(zip_file_set_encryption(archive.archiveOpt, index, method.rawValue, nil))
     }
     
     public func setEncryption(method: EncryptionMethod, password: String) throws {
         try password.withCString { password in
-            _ = try checkZipResult(zip_file_set_encryption(archive.handle, index, method.rawValue, password))
+            _ = try checkZipResult(zip_file_set_encryption(archive.archiveOpt, index, method.rawValue, password))
         }
     }
     
@@ -183,7 +183,7 @@ public final class ZipEntry: ZipErrorContext {
     /// - Parameter name: the new name
     public func rename(name: String) -> Bool {
         return name.withCString { name in
-            return checkIsSuccess(zip_file_rename(archive.handle, index, name, ZIP_FL_ENC_UTF_8))
+            return checkIsSuccess(zip_file_rename(archive.archiveOpt, index, name, ZIP_FL_ENC_UTF_8))
         }
     }
     
@@ -191,14 +191,14 @@ public final class ZipEntry: ZipErrorContext {
     /// - Parameter date: date
     public func setModified(date: Date) throws {
         let time = time_t(date.timeIntervalSinceNow)
-        try checkZipResult(zip_file_set_mtime(archive.handle, index, time, 0))
+        try checkZipResult(zip_file_set_mtime(archive.archiveOpt, index, time, 0))
     }
     
     // MARK: - discard change
 
     /// 撤销修改
     public func discardChange() -> Bool {
-        return checkIsSuccess(zip_unchange(archive.handle, index))
+        return checkIsSuccess(zip_unchange(archive.archiveOpt, index))
     }
     
     // MARK: - uncompress & compress
@@ -206,9 +206,9 @@ public final class ZipEntry: ZipErrorContext {
     private func openEntry(password: String = "", mode: OpenMode = .none) throws -> OpaquePointer {
         var zipFileHandler: OpaquePointer
         if password.isEmpty {
-            zipFileHandler = try checkZipResult(zip_fopen_index(archive.handle, index, zip_flags_t(mode.rawValue)))
+            zipFileHandler = try checkZipResult(zip_fopen_index(archive.archiveOpt, index, zip_flags_t(mode.rawValue)))
         } else {
-            zipFileHandler = try checkZipResult(zip_fopen_index_encrypted(archive.handle, index, zip_flags_t(mode.rawValue), password))
+            zipFileHandler = try checkZipResult(zip_fopen_index_encrypted(archive.archiveOpt, index, zip_flags_t(mode.rawValue), password))
         }
         return zipFileHandler
     }

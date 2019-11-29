@@ -10,14 +10,23 @@ import Foundation
 
 public final class ZipArchive: ZipErrorContext {
 
-    internal var handle: OpaquePointer!
+    internal var archiveOpt: OpaquePointer!
     
     // MARK: - struct
-    
+    public struct LocateFlags: OptionSet {
+        public let rawValue: UInt32
+        public init(rawValue: UInt32) {
+            self.rawValue = rawValue
+        }
+        public static let none = LocateFlags(rawValue: 0)
+        public static let caseInsensitive = LocateFlags(rawValue: ZIP_FL_NOCASE)
+        public static let ignoreDirectory = LocateFlags(rawValue: ZIP_FL_NODIR)
+    }
+
     // MARK: - property
     
     internal var error: ZipError? {
-        return .zipError(zip_get_error(handle).pointee)
+        return .zipError(zip_get_error(archiveOpt).pointee)
     }
     
     // MARK: - static
@@ -41,7 +50,7 @@ public final class ZipArchive: ZipErrorContext {
     // MARK: - init / open
     
     deinit {
-        if let handle = handle {
+        if let handle = archiveOpt {
             zip_discard(handle)
         }
     }
@@ -60,7 +69,7 @@ public final class ZipArchive: ZipErrorContext {
         }
         
         try checkZipError(status)
-        self.handle = try handle.unwrapped()
+        self.archiveOpt = try handle.unwrapped()
     }
     
     public init(url: URL, mode: [OpenMode] = [.none]) throws {
@@ -82,46 +91,46 @@ public final class ZipArchive: ZipErrorContext {
         }
         
         try checkZipError(status)
-        self.handle = try handle.unwrapped()
+        self.archiveOpt = try handle.unwrapped()
     }
     
     func close(discardChanged: Bool = false) throws {
         if discardChanged {
-            zip_discard(handle)
+            zip_discard(archiveOpt)
         } else {
-            zip_close(handle)
+            zip_close(archiveOpt)
         }
-        handle = nil
+        archiveOpt = nil
     }
     
     // MARK: - password handling
     
     public func setDefaultPassword(_ password: String) throws {
         try password.withCString { password in
-            _ = try checkZipError(zip_set_default_password(handle, password))
+            _ = try checkZipError(zip_set_default_password(archiveOpt, password))
         }
     }
     
     // MARK: - comments
     
     public func getComment(encoding: Encoding = .guess, condition: Condition = .original) throws -> String {
-        return try String(cString: checkZipResult(zip_get_archive_comment(handle, nil, encoding.rawValue | condition.rawValue)))
+        return try String(cString: checkZipResult(zip_get_archive_comment(archiveOpt, nil, encoding.rawValue | condition.rawValue)))
     }
     
     public func setComment(comment: String) throws {
         try comment.withCString { comment in
-            _ = try checkZipResult(zip_set_archive_comment(handle, comment, zipCast(strlen(comment))))
+            _ = try checkZipResult(zip_set_archive_comment(archiveOpt, comment, zipCast(strlen(comment))))
         }
     }
     
     public func deleteComment() throws {
-        try checkZipResult(zip_set_archive_comment(handle, nil, 0))
+        try checkZipResult(zip_set_archive_comment(archiveOpt, nil, 0))
     }
     
     // MARK: - entry
     
-    func getEntryCount(condition: Condition = .original) throws -> Int {
-        return try zipCast(checkZipResult(zip_get_num_entries(handle, condition.rawValue)))
+    private func getEntryCount(condition: Condition = .original) throws -> Int {
+        return try zipCast(checkZipResult(zip_get_num_entries(archiveOpt, condition.rawValue)))
     }
     
     public func getEntries() throws -> [ZipEntry] {
@@ -129,27 +138,77 @@ public final class ZipArchive: ZipErrorContext {
         var zipentries: [ZipEntry] = Array.init()
         for idx in 0..<count {
             var stat = zip_stat()
-            try checkZipResult(zip_stat_index(handle, zip_uint64_t(idx), Condition.original.rawValue, &stat))
-            let entry = try ZipEntry(archive: self, stat: stat)
+            try checkZipResult(zip_stat_index(archiveOpt, zip_uint64_t(idx), Condition.original.rawValue, &stat))
+            let entry = ZipEntry(archive: self, stat: stat)
             zipentries.append(entry)
         }
         return zipentries
     }
     
-    public containsEntry(name: String, caseSensitive: Bool, index: inout UInt64) -> {
-        
+    private func lookupEntry(_ entryName: String, _ caseSensitive: Bool) -> Int64 {
+        guard !entryName.isEmpty else {
+            return -1
+        }
+        return entryName.withCString { entryName  in
+            if let index = try? checkZipResult(zip_name_locate(archiveOpt, entryName, caseSensitive ? LocateFlags.none.rawValue : LocateFlags.caseInsensitive.rawValue)) {
+                return index
+            }
+            return -1
+        }
+    }
+    
+    public func readEntry(from index: UInt64) -> ZipEntry? {
+        var stat = zip_stat()
+        if let index = try? checkZipResult(zip_stat_index(archiveOpt, index, Condition.original.rawValue, &stat)) {
+            if index >= 0 {
+                return  ZipEntry(archive: self, stat: stat)
+            }
+        }
+        return nil
+    }
+    
+    public func readEntry(entryName: String, caseSensitive: Bool = false) -> ZipEntry?  {
+        guard !entryName.isEmpty else {
+            return nil
+        }
+        let index = lookupEntry(entryName, caseSensitive)
+        if index >= 0 {
+            return readEntry(from: UInt64(index))
+        }
+        return nil
+    }
+    
+    public func containsEntry(entryName: String, caseSensitive: Bool = false) -> Bool {
+        return lookupEntry(entryName, caseSensitive) >= 0
+    }
+    
+    public func containsEntry(entryName: String, caseSensitive: Bool = false, index: inout UInt64) -> Bool {
+        let idx = lookupEntry(entryName, caseSensitive)
+        if idx >= 0 {
+            index = UInt64(idx)
+            return true
+        }
+        return false
     }
     
     public func deleteEntry(index: UInt64) -> Bool {
-        return checkIsSuccess(zip_delete(handle, index))
+        return checkIsSuccess(zip_delete(archiveOpt, index))
     }
     
-    public func deleteEntry(entryName: String, caseSensitive: Bool) -> {
-        var idx: Int64 = 0
-        
+    public func deleteEntry(entryName: String, caseSensitive: Bool) -> Bool {
+        guard !entryName.isEmpty else {
+            return false
+        }
+        let index = lookupEntry(entryName, caseSensitive)
+        if index >= 0 {
+            return deleteEntry(index: UInt64(index))
+        }
+        return false
     }
     
-    public func addFile() {
+    public func add
+    
+    public func addDirectory() {
         
     }
     
