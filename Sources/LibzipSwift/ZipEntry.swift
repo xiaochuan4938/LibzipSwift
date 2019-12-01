@@ -1,7 +1,7 @@
 import libzip
 import Foundation
 
-public final class ZipEntry: ZipErrorContext {
+public final class ZipEntry: ZipErrorHandler {
     
     let archive: ZipArchive
     let stat: zip_stat
@@ -192,6 +192,13 @@ public final class ZipEntry: ZipErrorContext {
     public func setModified(date: Date) throws {
         let time = time_t(date.timeIntervalSinceNow)
         try checkZipResult(zip_file_set_mtime(archive.archiveOpt, index, time, 0))
+    }
+    
+    func replaceFile(source: ZipSource) throws {
+        try zipCheckResult(zip_file_replace(archive.handle, index, source.handle, ZIP_FL_ENC_UTF_8))
+        
+        // compensate unbalanced `free` inside `zip_file_replace`
+        source.keep()
     }
     
     // MARK: - discard change

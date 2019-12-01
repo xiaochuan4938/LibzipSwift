@@ -28,11 +28,11 @@ extension ZipError: LocalizedError {
     }
 }
 
-internal protocol ZipErrorContext {
+internal protocol ZipErrorHandler {
     var error: ZipError? { get }
 }
 
-extension ZipErrorContext {
+extension ZipErrorHandler {
     
     // MARK: - Error Code Handling
     

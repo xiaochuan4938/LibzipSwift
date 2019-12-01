@@ -8,7 +8,7 @@
 import libzip
 import Foundation
 
-public final class ZipArchive: ZipErrorContext {
+public final class ZipArchive: ZipErrorHandler {
 
     internal var archiveOpt: OpaquePointer!
     
@@ -206,10 +206,27 @@ public final class ZipArchive: ZipErrorContext {
         return false
     }
     
-    public func add
+    public func addFile() {
+        
+    }
     
     public func addDirectory() {
         
+    }
+    
+    public func replaceEntry(entryName: Stirng, file: String) -> Bool {
+        
+        return false
+    }
+    
+    // MARK: - Revert Changes
+    
+    public func unchangeGlobals() throws {
+        try zipCheckResult(zip_unchange_archive(handle))
+    }
+    
+    public func unchangeAll() throws {
+        try zipCheckResult(zip_unchange_all(handle))
     }
     
 }
