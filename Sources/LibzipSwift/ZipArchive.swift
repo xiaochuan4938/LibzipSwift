@@ -9,8 +9,11 @@ import libzip
 import Foundation
 
 public final class ZipArchive: ZipErrorHandler {
-
-    internal var archiveOpt: OpaquePointer!
+    
+    internal var archivePointer: OpaquePointer!
+    internal var callback: (UnsafeMutableRawPointer?, UnsafeMutableRawPointer?, UInt64, ZipSourceCommand) -> Int64 {
+        return streamCallback
+    }
     
     // MARK: - struct
     public struct LocateFlags: OptionSet {
@@ -22,11 +25,11 @@ public final class ZipArchive: ZipErrorHandler {
         public static let caseInsensitive = LocateFlags(rawValue: ZIP_FL_NOCASE)
         public static let ignoreDirectory = LocateFlags(rawValue: ZIP_FL_NODIR)
     }
-
+    
     // MARK: - property
     
     internal var error: ZipError? {
-        return .zipError(zip_get_error(archiveOpt).pointee)
+        return .zipError(zip_get_error(archivePointer).pointee)
     }
     
     // MARK: - static
@@ -34,8 +37,30 @@ public final class ZipArchive: ZipErrorHandler {
     /// check the file is zip archive
     /// - Parameter path: file path
     public static func isZipArchive(path: URL) -> Bool{
-    
-        // TODO: -
+        if let fileHandle = try? FileHandle(forReadingFrom: path) {
+            defer {
+                fileHandle.closeFile()
+            }
+            let data = fileHandle.readData(ofLength: 4)
+            if data.count < 4 {
+                return false
+            }
+            if (data[0] != 0x50 || data[1] != 0x4b) {
+                return false;
+            }
+            // Check for standard Zip File
+            if (data[0] != 0x03 || data[1] != 0x04) {
+                return true;
+            }
+            // Check for empty Zip File
+            if (data[0] != 0x05 || data[1] != 0x06) {
+                return true;
+            }
+            // Check for spanning Zip File
+            if (data[0] != 0x07 || data[1] != 0x08) {
+                return true;
+            }
+        }
         return false
     }
     
@@ -50,7 +75,7 @@ public final class ZipArchive: ZipErrorHandler {
     // MARK: - init / open
     
     deinit {
-        if let handle = archiveOpt {
+        if let handle = archivePointer {
             zip_discard(handle)
         }
     }
@@ -69,7 +94,7 @@ public final class ZipArchive: ZipErrorHandler {
         }
         
         try checkZipError(status)
-        self.archiveOpt = try handle.unwrapped()
+        self.archivePointer = try handle.unwrapped()
     }
     
     public init(url: URL, mode: [OpenMode] = [.none]) throws {
@@ -91,46 +116,46 @@ public final class ZipArchive: ZipErrorHandler {
         }
         
         try checkZipError(status)
-        self.archiveOpt = try handle.unwrapped()
+        self.archivePointer = try handle.unwrapped()
     }
     
-    func close(discardChanged: Bool = false) throws {
+    public func close(discardChanged: Bool = false) throws {
         if discardChanged {
-            zip_discard(archiveOpt)
+            zip_discard(archivePointer)
         } else {
-            zip_close(archiveOpt)
+            zip_close(archivePointer)
         }
-        archiveOpt = nil
+        archivePointer = nil
     }
     
     // MARK: - password handling
     
     public func setDefaultPassword(_ password: String) throws {
         try password.withCString { password in
-            _ = try checkZipError(zip_set_default_password(archiveOpt, password))
+            _ = try checkZipError(zip_set_default_password(archivePointer, password))
         }
     }
     
     // MARK: - comments
     
-    public func getComment(encoding: Encoding = .guess, condition: Condition = .original) throws -> String {
-        return try String(cString: checkZipResult(zip_get_archive_comment(archiveOpt, nil, encoding.rawValue | condition.rawValue)))
+    public func getComment(encoding: ZipEncoding = .guess, condition: Condition = .original) throws -> String {
+        return try String(cString: checkZipResult(zip_get_archive_comment(archivePointer, nil, encoding.rawValue | condition.rawValue)))
     }
     
     public func setComment(comment: String) throws {
         try comment.withCString { comment in
-            _ = try checkZipResult(zip_set_archive_comment(archiveOpt, comment, zipCast(strlen(comment))))
+            _ = try checkZipResult(zip_set_archive_comment(archivePointer, comment, zipCast(strlen(comment))))
         }
     }
     
     public func deleteComment() throws {
-        try checkZipResult(zip_set_archive_comment(archiveOpt, nil, 0))
+        try checkZipResult(zip_set_archive_comment(archivePointer, nil, 0))
     }
     
     // MARK: - entry
     
     private func getEntryCount(condition: Condition = .original) throws -> Int {
-        return try zipCast(checkZipResult(zip_get_num_entries(archiveOpt, condition.rawValue)))
+        return try zipCast(checkZipResult(zip_get_num_entries(archivePointer, condition.rawValue)))
     }
     
     public func getEntries() throws -> [ZipEntry] {
@@ -138,7 +163,7 @@ public final class ZipArchive: ZipErrorHandler {
         var zipentries: [ZipEntry] = Array.init()
         for idx in 0..<count {
             var stat = zip_stat()
-            try checkZipResult(zip_stat_index(archiveOpt, zip_uint64_t(idx), Condition.original.rawValue, &stat))
+            try checkZipResult(zip_stat_index(archivePointer, zip_uint64_t(idx), Condition.original.rawValue, &stat))
             let entry = ZipEntry(archive: self, stat: stat)
             zipentries.append(entry)
         }
@@ -150,7 +175,7 @@ public final class ZipArchive: ZipErrorHandler {
             return -1
         }
         return entryName.withCString { entryName  in
-            if let index = try? checkZipResult(zip_name_locate(archiveOpt, entryName, caseSensitive ? LocateFlags.none.rawValue : LocateFlags.caseInsensitive.rawValue)) {
+            if let index = try? checkZipResult(zip_name_locate(archivePointer, entryName, caseSensitive ? LocateFlags.none.rawValue : LocateFlags.caseInsensitive.rawValue)) {
                 return index
             }
             return -1
@@ -159,7 +184,7 @@ public final class ZipArchive: ZipErrorHandler {
     
     public func readEntry(from index: UInt64) -> ZipEntry? {
         var stat = zip_stat()
-        if let index = try? checkZipResult(zip_stat_index(archiveOpt, index, Condition.original.rawValue, &stat)) {
+        if let index = try? checkZipResult(zip_stat_index(archivePointer, index, Condition.original.rawValue, &stat)) {
             if index >= 0 {
                 return  ZipEntry(archive: self, stat: stat)
             }
@@ -192,7 +217,7 @@ public final class ZipArchive: ZipErrorHandler {
     }
     
     public func deleteEntry(index: UInt64) -> Bool {
-        return checkIsSuccess(zip_delete(archiveOpt, index))
+        return checkIsSuccess(zip_delete(archivePointer, index))
     }
     
     public func deleteEntry(entryName: String, caseSensitive: Bool) -> Bool {
@@ -210,23 +235,56 @@ public final class ZipArchive: ZipErrorHandler {
         
     }
     
-    public func addDirectory() {
-        
+    public func addDirectory(dirName: String) throws -> Int64 {
+        return try dirName.withCString { dirName in
+            return try zipCast(checkZipResult(zip_dir_add(archivePointer, dirName, ZipEncoding.utf8.rawValue)))
+        }
     }
     
-    public func replaceEntry(entryName: Stirng, file: String) -> Bool {
+    public func replaceEntry(file: String, entryName: String) -> Bool {
         
+        return false
+    }
+    
+    public func replaceEntry(file: String, index: UInt64) -> Bool {
+        if FileManager.default.fileExists(atPath: file) {
+            if let zipSource = try? ZipSource(fileName: file) {
+                if let entry = readEntry(from: index) {
+                    return ((try? entry.replaceFile(source: zipSource)) != nil)
+                }
+            }
+        }
         return false
     }
     
     // MARK: - Revert Changes
     
     public func unchangeGlobals() throws {
-        try zipCheckResult(zip_unchange_archive(handle))
+        try checkZipResult(zip_unchange_archive(archivePointer))
     }
     
     public func unchangeAll() throws {
-        try zipCheckResult(zip_unchange_all(handle))
+        try checkZipResult(zip_unchange_all(archivePointer))
+    }
+    
+    // MARK: - callback
+    
+    // TODO: 该函式尚未完成
+    internal func streamCallback(state: UnsafeMutableRawPointer?, data: UnsafeMutableRawPointer?, length: UInt64, sourceCommand: ZipSourceCommand) -> Int64 {
+        
+        //        switch sourceCommand {
+        //            case <#pattern#>:
+        //            <#code#>
+        //            default:
+        //            <#code#>
+        //        }
+        return 0
+    }
+    
+    internal func registerProgressCallback(callback: @escaping (Double)->()) {
+        zip_register_progress_callback(archivePointer) { progress in
+            
+        }
     }
     
 }

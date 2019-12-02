@@ -2,12 +2,15 @@ import XCTest
 @testable import LibzipSwift
 
 final class ZipArchiveTests: XCTestCase {
+    
+    let fileName = "/Users/martin/Desktop/CodeSign/321.zip"
+    //        let fileName = "/Users/MartinLau/Desktop/321.zip"
+    
+    
     func testGetEntries() {
         // This is an example of a functional test case.
         // Use XCTAssert and related functions to verify your tests produce the correct
         // results.
-        let fileName = "/Users/martin/Desktop/CodeSign/321.zip"
-        //        let fileName = "/Users/MartinLau/Desktop/321.zip"
         
         do {
             let zipArchive = try ZipArchive(path: fileName)
@@ -30,8 +33,6 @@ final class ZipArchiveTests: XCTestCase {
     }
     
     func testExtractEntry() {
-        let fileName = "/Users/martin/Desktop/CodeSign/123test.ipa"   //"/Users/martin/Desktop/CodeSign/123.zip"
-        //        let fileName = "/Users/MartinLau/Desktop/321.zip"
         do {
             let zipArchive = try ZipArchive(path: fileName)
             defer {
@@ -60,10 +61,12 @@ final class ZipArchiveTests: XCTestCase {
         }
     }
     
+    func testZipArchiveJudgment() {
+        XCTAssertEqual(ZipArchive.isZipArchive(path: URL(fileURLWithPath: fileName)), true, "this is not a zip archive file")
+//        assert(, "this is not a zip archive file")
+    }
+    
     func testOpenEntry2Data() {
-        
-        let fileName = "/Users/martin/Desktop/CodeSign/321.zip"
-        //        let fileName = "/Users/MartinLau/Desktop/321.zip"
         do {
             let zipArchive = try ZipArchive(path: fileName)
             defer {
@@ -94,11 +97,39 @@ final class ZipArchiveTests: XCTestCase {
         }
     }
     
+    func testAvchiveOpreat() {
+        if let zipArchive = try? ZipArchive(path: fileName) {
+            defer {
+                try! zipArchive.close()
+            }
+            // add folder
+            if let index = try? zipArchive.addDirectory(dirName: "English🔣🅿️⌘") {
+                XCTAssertEqual(index >= 0, true, "Can not add directory")
+                return
+            }
+            if let index = try? zipArchive.addDirectory(dirName: "English🔣🅿️⌘") {
+                XCTAssertEqual(index >= 0, true, "Can not add directory")
+                return
+            }
+            
+            // add file
+            
+            // replace file
+            
+            
+            
+            
+            XCTAssert(false, zipArchive.error!.localizedDescription)
+        }
+    }
+    
+    
     static var allTests = [
+        //        ("testZipArchiveJudgment", testZipArchiveJudgment),
         //        ("testGetEntries", testGetEntries),
         //        ("testOpenEntry2Data", testOpenEntry2Data),
-        ("testExtractEntry", testExtractEntry),
+        //        ("testExtractEntry", testExtractEntry),
+        
+        ("testAvchiveOpreat", testAvchiveOpreat),
     ]
 }
-
-

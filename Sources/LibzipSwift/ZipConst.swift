@@ -69,16 +69,16 @@ public struct Condition: RawRepresentable {
 }
 
 /// zip Encoding
-public struct Encoding: RawRepresentable {
+public struct ZipEncoding: RawRepresentable {
     public let rawValue: UInt32
     public init(rawValue: UInt32) {
         self.rawValue = rawValue
     }
     
-    public static let guess = Encoding(rawValue: ZIP_FL_ENC_GUESS)
-    public static let strict = Encoding(rawValue: ZIP_FL_ENC_STRICT)
-    public static let raw = Encoding(rawValue: ZIP_FL_ENC_RAW)
-    public static let utf8 = Encoding(rawValue: ZIP_FL_ENC_UTF_8)
+    public static let guess = ZipEncoding(rawValue: ZIP_FL_ENC_GUESS)
+    public static let strict = ZipEncoding(rawValue: ZIP_FL_ENC_STRICT)
+    public static let raw = ZipEncoding(rawValue: ZIP_FL_ENC_RAW)
+    public static let utf8 = ZipEncoding(rawValue: ZIP_FL_ENC_UTF_8)
 }
 
 /// zip OS Platform
@@ -90,13 +90,34 @@ public struct ZipOSPlatform: RawRepresentable {
     
     public static let Dos               = ZipOSPlatform(rawValue: 0x00)
     public static let UNIX              = ZipOSPlatform(rawValue: 0x03)
-    public static let OS_2              = ZipOSPlatform(rawValue: 0x06)
+    public static let OS2              = ZipOSPlatform(rawValue: 0x06)
     public static let MACINTOSH         = ZipOSPlatform(rawValue: 0x07)
     public static let WINDOWS_NTFS      = ZipOSPlatform(rawValue: 0x0a)
-    public static let OS_X              = ZipOSPlatform(rawValue: 0x013)
+    public static let OSX              = ZipOSPlatform(rawValue: 0x013)
 }
 
+// MARK: - internal Struct
 
+enum ZipSourceCommand {
+    case Open
+    case Read
+    case Close
+    case Stat
+    case Error
+    case Free
+    case Seek
+    case Tell
+    case BeginWrite
+    case CommitWrite
+    case RollbackWrite
+    case Write
+    case SeekWrite
+    case TellWrite
+    case Supports
+    case Remove
+    case GetCompressionFlags
+    case BeginWriteCloning
+}
 
 // MARK: - Optional Unwrapping
 

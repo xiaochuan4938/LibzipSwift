@@ -6,10 +6,9 @@ import PackageDescription
 let package = Package(
     name: "LibzipSwift",
     platforms: [
-        .iOS(.v9),
-        .tvOS(.v9),
-        .macOS(.v10_10),
-        .watchOS(.v2),
+        .iOS(.v11),
+        .tvOS(.v11),
+        .macOS(.v10_12),
     ],
     products: [
         .library(name: "libzip", targets: ["libzip"]),
