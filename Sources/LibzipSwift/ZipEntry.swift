@@ -194,7 +194,10 @@ public final class ZipEntry: ZipErrorHandler {
         try checkZipResult(zip_file_set_mtime(archive.archivePointer, index, time, 0))
     }
     
-    func replaceFile(source: ZipSource) throws {
+    
+    /// Replace the entry
+    /// - Parameter source: the zip source
+    func replace(source: ZipSource) throws {
         try checkZipResult(zip_file_replace(archive.archivePointer, index, source.sourcePointer, ZIP_FL_ENC_UTF_8))
         
         // compensate unbalanced `free` inside `zip_file_replace`

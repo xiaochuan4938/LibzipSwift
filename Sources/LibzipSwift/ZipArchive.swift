@@ -220,7 +220,7 @@ public final class ZipArchive: ZipErrorHandler {
         return checkIsSuccess(zip_delete(archivePointer, index))
     }
     
-    public func deleteEntry(entryName: String, caseSensitive: Bool) -> Bool {
+    public func deleteEntry(entryName: String, caseSensitive: Bool =  false) -> Bool {
         guard !entryName.isEmpty else {
             return false
         }
@@ -231,26 +231,37 @@ public final class ZipArchive: ZipErrorHandler {
         return false
     }
     
-    public func addFile() {
+    public func addFile(file: String, entryName: String) throws -> Int64 {
         
+        
+        return -1
     }
     
-    public func addDirectory(dirName: String) throws -> Int64 {
+    
+    /// add directory to zip archive
+    /// - Parameter dirName: **the directory name**
+    public func addDirectory(dirName: String) throws -> UInt64 {
         return try dirName.withCString { dirName in
             return try zipCast(checkZipResult(zip_dir_add(archivePointer, dirName, ZipEncoding.utf8.rawValue)))
         }
     }
     
-    public func replaceEntry(file: String, entryName: String) -> Bool {
-        
+    public func replaceEntry(file: String, entryName: String, caseSensitive: Bool = false) -> Bool {
+            if let zipSource = try? ZipSource(fileName: file) {
+                if let entry = readEntry(entryName: entryName, caseSensitive: caseSensitive) {
+                    if (try? entry.replace(source: zipSource)) != nil {
+                        return true
+                    }
+                }
+            }
         return false
     }
     
-    public func replaceEntry(file: String, index: UInt64) -> Bool {
+    public func replaceEntry(file: String, entryIndex: UInt64) -> Bool {
         if FileManager.default.fileExists(atPath: file) {
             if let zipSource = try? ZipSource(fileName: file) {
-                if let entry = readEntry(from: index) {
-                    return ((try? entry.replaceFile(source: zipSource)) != nil)
+                if let entry = readEntry(from: entryIndex) {
+                    return ((try? entry.replace(source: zipSource)) != nil)
                 }
             }
         }
