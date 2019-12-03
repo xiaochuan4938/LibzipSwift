@@ -54,7 +54,7 @@ public struct CompressionLevel: RawRepresentable {
 
 public struct ExternalAttributes {
     public let operatingSystem: ZipOSPlatform
-    public let attributes: UInt32
+    public var attributes: UInt32
 }
 
 /// entry condition

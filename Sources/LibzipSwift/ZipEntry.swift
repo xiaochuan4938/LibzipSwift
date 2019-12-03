@@ -155,8 +155,8 @@ public final class ZipEntry: ZipErrorHandler {
     
     // MARK: - attributes
     
-    public func setExternalAttributes(operatingSystem: UInt8, attributes: UInt32) throws {
-        try checkZipResult(zip_file_set_external_attributes(archive.archivePointer, index, 0, operatingSystem, attributes))
+    public func setExternalAttributes(operatingSystem: ZipOSPlatform, attributes: UInt32) throws {
+        try checkZipResult(zip_file_set_external_attributes(archive.archivePointer, index, 0, operatingSystem.rawValue, attributes))
     }
     
     // MARK: - compression
@@ -193,7 +193,6 @@ public final class ZipEntry: ZipErrorHandler {
         let time = time_t(date.timeIntervalSinceNow)
         try checkZipResult(zip_file_set_mtime(archive.archivePointer, index, time, 0))
     }
-    
     
     /// Replace the entry
     /// - Parameter source: the zip source

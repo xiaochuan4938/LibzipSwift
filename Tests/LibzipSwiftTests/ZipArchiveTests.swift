@@ -3,7 +3,7 @@ import XCTest
 
 final class ZipArchiveTests: XCTestCase {
     
-    let fileName = "/Users/martin/Desktop/CodeSign/321.zip"
+    let fileName = "/Users/martin/Desktop/CodeSign/123.zip"
     //        let fileName = "/Users/MartinLau/Desktop/321.zip"
     
     
@@ -28,6 +28,25 @@ final class ZipArchiveTests: XCTestCase {
             print("文件不存在")
         } catch {
             print("Open Zip Error: ")
+            print("\(error.localizedDescription)")
+        }
+    }
+    
+    func testNewZipArchive() {
+        do {
+            let zipArchive = try ZipArchive.createZip(path: "/Users/martin/Desktop/CodeSign/123new.zip")
+            defer {
+                do  {
+                    try zipArchive.close()
+                } catch {
+                    print("\(error.localizedDescription)")
+                }
+            }
+            try zipArchive.addDirectory(dirName: "繁體简体 abc 123▦░▥▨▩┏◈〆卍")
+            try zipArchive.addFile(file: "/Applications/网易有道词典.app/Contents/MacOS/网易有道词典", entryName: "macOS/wycd")
+            try zipArchive.addFile(file: "/Users/martin/Desktop/CodeSign/programmer@2x.png", entryName: "test.png")
+            
+        } catch {
             print("\(error.localizedDescription)")
         }
     }
@@ -100,36 +119,39 @@ final class ZipArchiveTests: XCTestCase {
     func testAvchiveOpreat() {
         if let zipArchive = try? ZipArchive(path: fileName) {
             defer {
-                try! zipArchive.close()
+                try? zipArchive.close()
             }
+            
+            // delete entry
+//            XCTAssert(zipArchive.deleteEntry(entryName: "Info.plist"), zipArchive.error!.localizedDescription)
+            
             // add folder
             if let index = try? zipArchive.addDirectory(dirName: "English🔣🅿️⌘") {
-                XCTAssertEqual(index >= 0, true, "Can not add directory")
-                return
-            }
-            if let index = try? zipArchive.addDirectory(dirName: "English🔣🅿️⌘") {
-                XCTAssertEqual(index >= 0, true, "Can not add directory")
+                XCTAssertEqual(index >= 0, true, zipArchive.error!.localizedDescription)
                 return
             }
             
             // add file
+            if let index = try? zipArchive.addFile(file: "/Applications/网易有道词典.app/Contents/MacOS/网易有道词典", entryName: "/macOS/网易有道词典", override: true) {
+                XCTAssertEqual(index >= 0, true, zipArchive.error!.localizedDescription)
+            } else {
+                print("=== \(zipArchive.error!.localizedDescription)")
+            }
             
             // replace file
+//            XCTAssert(zipArchive.replaceEntry(file: "/Users/martin/Desktop/CodeSign/programmer.webp", entryName: "Info.plist"), zipArchive.error!.localizedDescription)
             
+        } else {
             
-            
-            
-            XCTAssert(false, zipArchive.error!.localizedDescription)
         }
     }
-    
     
     static var allTests = [
         //        ("testZipArchiveJudgment", testZipArchiveJudgment),
         //        ("testGetEntries", testGetEntries),
         //        ("testOpenEntry2Data", testOpenEntry2Data),
         //        ("testExtractEntry", testExtractEntry),
-        
+//        ("testZipArchiveJudgment", testZipArchiveJudgment),
         ("testAvchiveOpreat", testAvchiveOpreat),
     ]
 }

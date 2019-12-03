@@ -81,9 +81,7 @@ public final class ZipArchive: ZipErrorHandler {
     }
     
     public init(path: String, mode: [OpenMode] = [.none]) throws {
-        if !FileManager.default.fileExists(atPath: path) {
-            throw ZipError.fileNotExist;
-        }
+        
         var falgs: OpenMode = OpenMode(rawValue: Int32(ZIP_FL_COMPRESSED))
         mode.forEach {
             falgs = OpenMode(rawValue: falgs.rawValue | $0.rawValue)
@@ -138,7 +136,7 @@ public final class ZipArchive: ZipErrorHandler {
     
     // MARK: - comments
     
-    public func getComment(encoding: ZipEncoding = .guess, condition: Condition = .original) throws -> String {
+    public func getComment(encoding: ZipEncoding = .guess, condition: Condition = .last) throws -> String {
         return try String(cString: checkZipResult(zip_get_archive_comment(archivePointer, nil, encoding.rawValue | condition.rawValue)))
     }
     
@@ -154,7 +152,7 @@ public final class ZipArchive: ZipErrorHandler {
     
     // MARK: - entry
     
-    private func getEntryCount(condition: Condition = .original) throws -> Int {
+    private func getEntryCount(condition: Condition = .last) throws -> Int {
         return try zipCast(checkZipResult(zip_get_num_entries(archivePointer, condition.rawValue)))
     }
     
@@ -163,7 +161,7 @@ public final class ZipArchive: ZipErrorHandler {
         var zipentries: [ZipEntry] = Array.init()
         for idx in 0..<count {
             var stat = zip_stat()
-            try checkZipResult(zip_stat_index(archivePointer, zip_uint64_t(idx), Condition.original.rawValue, &stat))
+            try checkZipResult(zip_stat_index(archivePointer, zip_uint64_t(idx), Condition.last.rawValue, &stat))
             let entry = ZipEntry(archive: self, stat: stat)
             zipentries.append(entry)
         }
@@ -184,7 +182,7 @@ public final class ZipArchive: ZipErrorHandler {
     
     public func readEntry(from index: UInt64) -> ZipEntry? {
         var stat = zip_stat()
-        if let index = try? checkZipResult(zip_stat_index(archivePointer, index, Condition.original.rawValue, &stat)) {
+        if let index = try? checkZipResult(zip_stat_index(archivePointer, index, Condition.last.rawValue, &stat)) {
             if index >= 0 {
                 return  ZipEntry(archive: self, stat: stat)
             }
@@ -231,15 +229,54 @@ public final class ZipArchive: ZipErrorHandler {
         return false
     }
     
-    public func addFile(file: String, entryName: String) throws -> Int64 {
+    /// add file on zip
+    /// - Parameters:
+    ///   - file: the file path
+    ///   - entryName: the entry name
+    ///   - override: override
+    @discardableResult
+    public func addFile(file: String, entryName: String, override: Bool = false) throws -> Int64 {
         
-        
+        if let zipSource = try? ZipSource(fileName: file) {
+//            var posix: UInt64 = 0
+//            if let attributes =  try? FileManager.default.attributesOfItem(atPath: file) {
+//                posix = attributes[.posixPermissions] as! UInt64
+//            }
+            let result =  try entryName.withCString { entryName -> Int64 in
+                var flags = ZIP_FL_ENC_UTF_8
+                if override {
+                    flags |= ZIP_FL_OVERWRITE
+                }
+                return try zipCast(checkZipResult(zip_file_add(archivePointer, entryName, zipSource.sourcePointer, flags)))
+            }
+            zipSource.keep()
+//            if result >= 0 {
+//                let permissionsMask: UInt32 = UInt32((posix & 0777) << 16)
+//                if let entry = readEntry(from: UInt64(result)) {
+//                    var external_fa = entry.externalAttributes.attributes
+//                    external_fa |= permissionsMask
+//                    try entry.setExternalAttributes(operatingSystem: .UNIX, attributes: external_fa)
+//                }
+//            }
+            return result
+        }
         return -1
     }
     
     
+    /// add file on zip
+    /// - Parameters:
+    ///   - url: the file url
+    ///   - entryName: entry name
+    ///   - override: override
+    @discardableResult
+    public func addFile(url: URL, entryName: String, override: Bool =  false) throws -> Int64 {
+        return try addFile(file: url.path, entryName: entryName, override: override)
+    }
+    
     /// add directory to zip archive
     /// - Parameter dirName: **the directory name**
+    @discardableResult
     public func addDirectory(dirName: String) throws -> UInt64 {
         return try dirName.withCString { dirName in
             return try zipCast(checkZipResult(zip_dir_add(archivePointer, dirName, ZipEncoding.utf8.rawValue)))
@@ -282,13 +319,38 @@ public final class ZipArchive: ZipErrorHandler {
     
     // TODO: 该函式尚未完成
     internal func streamCallback(state: UnsafeMutableRawPointer?, data: UnsafeMutableRawPointer?, length: UInt64, sourceCommand: ZipSourceCommand) -> Int64 {
+//        var buffer: [UInt8]
         
-        //        switch sourceCommand {
-        //            case <#pattern#>:
-        //            <#code#>
-        //            default:
-        //            <#code#>
-        //        }
+        switch sourceCommand {
+            case .Stat:
+                break
+            case .Tell:
+                break
+            case .TellWrite:
+                break
+            case .Write:
+                break
+            case .SeekWrite:
+                break
+            case .Seek:
+                break
+            case .CommitWrite:
+                break
+            case .Read:
+                break
+            case .BeginWrite:
+                break
+            case .Open:
+                break
+            case .Close:
+                break
+            case .Free:
+                break
+            case .Supports:
+                break
+            default:
+                break;
+        }
         return 0
     }
     
