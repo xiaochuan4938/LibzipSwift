@@ -82,7 +82,7 @@ public struct ZipEncoding: RawRepresentable {
 }
 
 /// zip OS Platform
-public struct ZipOSPlatform: RawRepresentable {
+public struct ZipOSPlatform: OptionSet {
     public let rawValue: UInt8
     public init(rawValue: UInt8) {
         self.rawValue = rawValue

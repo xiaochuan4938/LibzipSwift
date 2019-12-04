@@ -3,9 +3,11 @@ import XCTest
 
 final class ZipArchiveTests: XCTestCase {
     
-    let fileName = "/Users/martin/Desktop/CodeSign/123new.zip"
-    //        let fileName = "/Users/MartinLau/Desktop/321.zip"
-    
+    var fileName: String {
+        get {
+            return "/Users/martin/Desktop/CodeSign/123new.zip"
+        }
+    }
     
     func testGetEntries() {
         // This is an example of a functional test case.
@@ -151,11 +153,11 @@ final class ZipArchiveTests: XCTestCase {
     }
     
     static var allTests = [
-        //        ("testZipArchiveJudgment", testZipArchiveJudgment),
-        //        ("testGetEntries", testGetEntries),
-        //        ("testOpenEntry2Data", testOpenEntry2Data),
-        //        ("testExtractEntry", testExtractEntry),
-//        ("testZipArchiveJudgment", testZipArchiveJudgment),
+        ("testZipArchiveJudgment", testZipArchiveJudgment),
+        ("testGetEntries", testGetEntries),
+        ("testOpenEntry2Data", testOpenEntry2Data),
+        ("testExtractEntry", testExtractEntry),
+        ("testZipArchiveJudgment", testZipArchiveJudgment),
         ("testAvchiveOpreat", testAvchiveOpreat),
     ]
 }
