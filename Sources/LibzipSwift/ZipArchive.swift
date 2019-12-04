@@ -258,7 +258,7 @@ public final class ZipArchive: ZipErrorHandler {
             entryFullName = URL(fileURLWithPath: file).lastPathComponent
         }
         if let zipSource = try? ZipSource(fileName: file) {
-            var posix: UInt32 = 482
+            var posix: UInt32 = 0
             if let attributes =  try? FileManager.default.attributesOfItem(atPath: file) {
                 posix = attributes[.posixPermissions] as! UInt32
             }
