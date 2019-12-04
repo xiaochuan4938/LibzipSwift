@@ -129,8 +129,9 @@ public final class ZipEntry: ZipErrorHandler {
         var name = String(cString: stat.name!, encoding: .utf8)
         let zipOS = self.externalAttributes.operatingSystem
         if zipOS == .Dos || zipOS == .WINDOWS_NTFS {
+            // 自动转换档案名编码
             if let zipFN = zip_get_name(archive.archivePointer, index, ZipEncoding.raw.rawValue) {
-                // 自动转换档案名编码
+                
                 let nameLen = zipFN.withMemoryRebound(to: Int8.self, capacity: 8, {
                     return strlen($0)
                 })

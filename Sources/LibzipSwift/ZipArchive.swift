@@ -65,11 +65,11 @@ public final class ZipArchive: ZipErrorHandler {
     }
     
     public static func createZip(path: String) throws -> ZipArchive {
-        return try ZipArchive(path: path, mode: [.create])
+        return try ZipArchive(path: path, mode: [.create, .checkConsistency])
     }
     
     public static func createZip(url: URL) throws -> ZipArchive {
-        return try ZipArchive(url: url, mode: [.create])
+        return try ZipArchive(url: url, mode: [.create, .checkConsistency])
     }
     
     // MARK: - init / open
@@ -81,8 +81,18 @@ public final class ZipArchive: ZipErrorHandler {
     }
     
     public init(path: String, mode: [OpenMode] = [.none]) throws {
+        if !mode.contains { mode -> Bool in
+            if mode == .create {
+                return true
+            }
+            return false
+            } {
+            if !FileManager.default.fileExists(atPath: path) {
+                throw ZipError.fileNotExist;
+            }
+        }
         
-        var falgs: OpenMode = OpenMode(rawValue: Int32(ZIP_FL_COMPRESSED))
+        var falgs: OpenMode = OpenMode(rawValue: 0)
         mode.forEach {
             falgs = OpenMode(rawValue: falgs.rawValue | $0.rawValue)
         }
@@ -96,11 +106,18 @@ public final class ZipArchive: ZipErrorHandler {
     }
     
     public init(url: URL, mode: [OpenMode] = [.none]) throws {
-        if !FileManager.default.fileExists(atPath: url.path) {
-            throw ZipError.fileNotExist;
+        if !mode.contains { mode -> Bool in
+            if mode == .create {
+                return true
+            }
+            return false
+            } {
+            if !FileManager.default.fileExists(atPath: url.path) {
+                throw ZipError.fileNotExist;
+            }
         }
         
-        var falgs: OpenMode = OpenMode(rawValue: Int32(ZIP_FL_COMPRESSED))
+        var falgs: OpenMode = OpenMode(rawValue: Int32(0))
         mode.forEach { item in
             falgs = OpenMode(rawValue: falgs.rawValue | item.rawValue)
         }
@@ -235,34 +252,36 @@ public final class ZipArchive: ZipErrorHandler {
     ///   - entryName: the entry name
     ///   - override: override
     @discardableResult
-    public func addFile(file: String, entryName: String, override: Bool = false) throws -> Int64 {
-        
+    public func addFile(file: String, entryName: String = "", override: Bool = false) throws -> Int64 {
+        var entryFullName = entryName
+        if entryFullName.isEmpty {
+            entryFullName = URL(fileURLWithPath: file).lastPathComponent
+        }
         if let zipSource = try? ZipSource(fileName: file) {
-//            var posix: UInt64 = 0
-//            if let attributes =  try? FileManager.default.attributesOfItem(atPath: file) {
-//                posix = attributes[.posixPermissions] as! UInt64
-//            }
-            let result =  try entryName.withCString { entryName -> Int64 in
+            var posix: UInt32 = 482
+            if let attributes =  try? FileManager.default.attributesOfItem(atPath: file) {
+                posix = attributes[.posixPermissions] as! UInt32
+            }
+            let result =  try entryFullName.withCString { entryFullName -> Int64 in
                 var flags = ZIP_FL_ENC_UTF_8
                 if override {
                     flags |= ZIP_FL_OVERWRITE
                 }
-                return try zipCast(checkZipResult(zip_file_add(archivePointer, entryName, zipSource.sourcePointer, flags)))
+                return try zipCast(checkZipResult(zip_file_add(archivePointer, entryFullName, zipSource.sourcePointer, flags)))
             }
             zipSource.keep()
-//            if result >= 0 {
-//                let permissionsMask: UInt32 = UInt32((posix & 0777) << 16)
-//                if let entry = readEntry(from: UInt64(result)) {
-//                    var external_fa = entry.externalAttributes.attributes
-//                    external_fa |= permissionsMask
-//                    try entry.setExternalAttributes(operatingSystem: .UNIX, attributes: external_fa)
-//                }
-//            }
+            if result >= 0 {
+                let permissionsMask: UInt32 = (posix & 0o777) << 16
+                if let entry = readEntry(from: UInt64(result)) {
+                    var external_fa = entry.externalAttributes.attributes
+                    external_fa |= permissionsMask
+                    try entry.setExternalAttributes(operatingSystem: .UNIX, attributes: external_fa)
+                }
+            }
             return result
         }
         return -1
     }
-    
     
     /// add file on zip
     /// - Parameters:
@@ -270,7 +289,7 @@ public final class ZipArchive: ZipErrorHandler {
     ///   - entryName: entry name
     ///   - override: override
     @discardableResult
-    public func addFile(url: URL, entryName: String, override: Bool =  false) throws -> Int64 {
+    public func addFile(url: URL, entryName: String = "", override: Bool =  false) throws -> Int64 {
         return try addFile(file: url.path, entryName: entryName, override: override)
     }
     

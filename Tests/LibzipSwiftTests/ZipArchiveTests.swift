@@ -3,7 +3,7 @@ import XCTest
 
 final class ZipArchiveTests: XCTestCase {
     
-    let fileName = "/Users/martin/Desktop/CodeSign/123.zip"
+    let fileName = "/Users/martin/Desktop/CodeSign/123new.zip"
     //        let fileName = "/Users/MartinLau/Desktop/321.zip"
     
     
@@ -22,7 +22,9 @@ final class ZipArchiveTests: XCTestCase {
             let entries = try zipArchive.getEntries()
             for entry in entries {
                 print("entry name: \(entry.fileName)\n")
+                print("entry posix: \(entry.posixPermission)\n")
                 print("entry m_time: \(entry.modificationDate)")
+                print("\n")
             }
         } catch ZipError.fileNotExist {
             print("文件不存在")
@@ -42,6 +44,8 @@ final class ZipArchiveTests: XCTestCase {
                     print("\(error.localizedDescription)")
                 }
             }
+            try zipArchive.addDirectory(dirName: "macOS")
+            try zipArchive.addDirectory(dirName: "macOS/卍〆◈(*`ェ´*)")
             try zipArchive.addDirectory(dirName: "繁體简体 abc 123▦░▥▨▩┏◈〆卍")
             try zipArchive.addFile(file: "/Applications/网易有道词典.app/Contents/MacOS/网易有道词典", entryName: "macOS/wycd")
             try zipArchive.addFile(file: "/Users/martin/Desktop/CodeSign/programmer@2x.png", entryName: "test.png")
