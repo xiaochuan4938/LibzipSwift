@@ -38,6 +38,8 @@ let package = Package(
         ),
         .testTarget(
             name: "LibzipSwiftTests",
-            dependencies: ["LibzipSwift"]),
+            dependencies: ["LibzipSwift"],
+            exclude: ["TestData"]
+        )
     ]
 )

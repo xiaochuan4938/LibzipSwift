@@ -29,6 +29,8 @@ extension ZipError: LocalizedError {
     }
 }
 
+// MARK: - Protocol
+
 internal protocol ZipErrorHandler {
     var error: ZipError? { get }
 }
@@ -73,5 +75,3 @@ extension ZipErrorHandler {
     }
     
 }
-
-

@@ -3,33 +3,48 @@ import XCTest
 
 final class LibzipSwiftTests: XCTestCase {
     
-    let baseDirectory: String = "TestData"
+    let baseDirectory = URL(fileURLWithPath: #file).deletingLastPathComponent().appendingPathComponent("TestData", isDirectory: true)
     var docArchive: String {
         get {
-            return Bundle(for: self.classForCoder).url(forResource: "doc_archive", withExtension: nil, subdirectory: baseDirectory)!.path
+            return baseDirectory.appendingPathComponent("doc_Archive.zip").path
         }
     }
     
     var winArchive: String {
         get {
-            return URL(fileURLWithPath: baseDirectory).appendingPathComponent("win_archive.zip").path
+            return baseDirectory.appendingPathComponent("win_archive.zip").path
         }
     }
     
     var unixArchive: String {
         get {
-            return URL(fileURLWithPath: baseDirectory).appendingPathComponent("unix_archive.zip").path
+            return baseDirectory.appendingPathComponent("unix_archive.zip").path
         }
     }
     
     var encryptArchive: String {
         get {
-            return URL(fileURLWithPath: baseDirectory).appendingPathComponent("encrypt_Archive.zip").path
+            return baseDirectory.appendingPathComponent("encrypt_Archive.zip").path
         }
     }
     
     func testNewArchive() {
-        
+        let newarchiveURL = baseDirectory.appendingPathComponent("newArchive.zip")
+        do {
+            let archive = try ZipArchive(url: newarchiveURL, mode: [.create])
+            defer {
+                try? archive.close()
+            }
+            archive.addDirectory(dirName: "繁體中文")
+            archive.addDirectory(dirName: "简体中文")
+            archive.addDirectory(dirName: "english")
+            archive.addDirectory(dirName: "あいかきサコセゅゑшнлкюяыь")
+            archive.addFile(url: baseDirectory.appendingPathComponent("時間时间Time😀¹²①②.txt"))
+            archive.addFile(url: baseDirectory.appendingPathComponent("時間时间Time😀¹²①②.txt"), entryName: "folder/時間时间Time😀¹²①②.txt")
+            
+        } catch {
+             XCTAssert(false, error.localizedDescription)
+        }
     }
     
     func testIsZipArchive() {

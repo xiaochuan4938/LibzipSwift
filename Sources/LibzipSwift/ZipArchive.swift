@@ -326,10 +326,12 @@ public final class ZipArchive: ZipErrorHandler {
     
     // MARK: - Revert Changes
     
+    /// undo global changes to zip archive
     public func unchangeGlobals() throws {
         try checkZipResult(zip_unchange_archive(archivePointer))
     }
     
+    /// undo all changes in a zip archive
     public func unchangeAll() throws {
         try checkZipResult(zip_unchange_all(archivePointer))
     }

@@ -206,7 +206,7 @@ public final class ZipEntry: ZipErrorHandler {
     
     // MARK: - discard change
 
-    /// 撤销修改
+    /// undo changes to file in zip archive
     public func discardChange() -> Bool {
         return checkIsSuccess(zip_unchange(archive.archivePointer, index))
     }
